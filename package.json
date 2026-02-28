@@ -1,5 +1,5 @@
 {
-  "name": "agentads-sdk",
+  "name": "@agentads/sdk",
   "version": "0.3.0",
   "description": "Monetize your AI app — add revenue to AI responses in 5 lines",
   "main": "./dist/index.js",
