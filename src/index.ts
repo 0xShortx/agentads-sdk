@@ -1,3 +1,5 @@
 export { withAgentAds } from './middleware'
 export { getAd } from './rest'
+export { AgentAd } from './components/AgentAd'
+export type { AgentAdProps } from './components/AgentAd'
 export type { AgentAdsConfig, AdUnit, AdFormat, AgentAdsResult } from './types'

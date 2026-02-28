@@ -1,6 +1,6 @@
 {
   "name": "@agentads/sdk",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Monetize your AI app — add revenue to AI responses in 5 lines",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -20,10 +20,12 @@
   },
   "keywords": ["ai", "ads", "monetization", "vercel-ai-sdk", "langchain", "openai"],
   "peerDependencies": {
-    "ai": ">=3.0.0"
+    "ai": ">=3.0.0",
+    "react": ">=17"
   },
   "peerDependenciesMeta": {
-    "ai": { "optional": true }
+    "ai": { "optional": true },
+    "react": { "optional": true }
   },
   "devDependencies": {
     "@ai-sdk/provider": "^1.0.0",

@@ -2,13 +2,15 @@ import { fetchAd } from './client'
 import { renderAd } from './formats'
 import type { AgentAdsConfig, AgentAdsResult } from './types'
 
+const DEFAULT_TIMEOUT_MS = 3000
+
 /**
  * Simple function for non-Vercel-AI-SDK users.
  * Pass your user query and AI response, get back the enriched response.
  *
  * @example
  * const result = await getAd({
- *   publisherId: 'pub_xxx',
+ *   publisherApiKey: 'pub_xxx',
  *   query: userMessage,
  *   response: aiResponse,
  * })
@@ -17,22 +19,34 @@ import type { AgentAdsConfig, AgentAdsResult } from './types'
  * }
  */
 export async function getAd(options: {
-  publisherId: string
+  publisherApiKey: string
+  /** @deprecated use publisherApiKey */
+  publisherId?: string
   query: string
   response: string
   format?: AgentAdsConfig['format']
+  sessionId?: string
   apiUrl?: string
   timeoutMs?: number
 }): Promise<AgentAdsResult> {
-  const format = options.format || 'suffix'
+  // Support deprecated publisherId
+  const apiKey = options.publisherApiKey ?? options.publisherId
+  if (!apiKey) throw new Error('AgentAds: publisherApiKey is required')
+
+  if (!options.publisherApiKey && options.publisherId) {
+    console.warn('[AgentAds] publisherId is deprecated — use publisherApiKey instead')
+  }
+
+  const format = options.format ?? 'suffix'
 
   const ad = await fetchAd({
-    publisherId: options.publisherId,
+    publisherApiKey: apiKey,
     query: options.query,
     response: options.response,
     format,
+    sessionId: options.sessionId,
     apiUrl: options.apiUrl,
-    timeoutMs: options.timeoutMs ?? 50,
+    timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
   })
 
   if (!ad) return { filled: false }

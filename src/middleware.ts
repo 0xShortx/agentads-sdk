@@ -3,6 +3,7 @@ import type {
   LanguageModelV1CallOptions,
   LanguageModelV1Prompt,
   LanguageModelV1Message,
+  LanguageModelV1StreamPart,
 } from '@ai-sdk/provider'
 import { wrapLanguageModel, type LanguageModelV1Middleware } from 'ai'
 import type { AgentAdsConfig } from './types'
@@ -27,15 +28,23 @@ export function withAgentAds(
     }) => {
       const result = await doGenerate()
 
+      // Resolve API key with backward-compat fallback
+      const apiKey = config.publisherApiKey ?? config.publisherId
+      if (!apiKey) throw new Error('AgentAds: publisherApiKey is required')
+      if (!config.publisherApiKey && config.publisherId) {
+        console.warn('[AgentAds] publisherId is deprecated — use publisherApiKey instead')
+      }
+
       // Extract user query from messages
       const userMessage = extractUserQuery(params.prompt)
       if (!userMessage) return result
 
       const ad = await fetchAd({
-        publisherId: config.publisherId,
+        publisherApiKey: apiKey,
         query: userMessage,
         response: result.text || '',
         format: config.format || 'suffix',
+        sessionId: config.sessionId,
         apiUrl: config.apiUrl,
         timeoutMs: config.timeoutMs ?? 50,
         onFill: config.onFill,
@@ -60,6 +69,13 @@ export function withAgentAds(
     }) => {
       const { stream, ...rest } = await doStream()
 
+      // Resolve API key with backward-compat fallback
+      const apiKey = config.publisherApiKey ?? config.publisherId
+      if (!apiKey) throw new Error('AgentAds: publisherApiKey is required')
+      if (!config.publisherApiKey && config.publisherId) {
+        console.warn('[AgentAds] publisherId is deprecated — use publisherApiKey instead')
+      }
+
       const userMessage = extractUserQuery(params.prompt)
       let fullResponse = ''
       let adInjected = false
@@ -67,7 +83,10 @@ export function withAgentAds(
 
       const format = config.format || 'suffix'
 
-      type StreamChunk = { type: string; textDelta?: string; [key: string]: unknown }
+      type StreamChunk =
+        | { type: 'text-delta'; textDelta: string }
+        | { type: 'finish'; [key: string]: unknown }
+        | { type: string; [key: string]: unknown }
 
       const transformStream = new TransformStream<StreamChunk, StreamChunk>({
         transform(chunk, controller) {
@@ -78,10 +97,11 @@ export function withAgentAds(
             // Fire ad fetch after we have 50+ chars (enough to classify intent)
             if (!adFetchPromise && fullResponse.length >= 50 && userMessage) {
               adFetchPromise = fetchAd({
-                publisherId: config.publisherId,
+                publisherApiKey: apiKey,
                 query: userMessage,
                 response: fullResponse,
                 format,
+                sessionId: config.sessionId,
                 apiUrl: config.apiUrl,
                 timeoutMs: config.timeoutMs ?? 50,
                 onFill: config.onFill,
@@ -112,7 +132,13 @@ export function withAgentAds(
       })
 
       return {
-        stream: stream.pipeThrough(transformStream as TransformStream<any, any>),
+        // TransformStream<StreamChunk, StreamChunk> produces ReadableStream<StreamChunk>,
+        // but the AI SDK expects ReadableStream<LanguageModelV1StreamPart>. Our StreamChunk
+        // union is structurally compatible at runtime; we cast via unknown to satisfy the
+        // type checker without resorting to `any`.
+        stream: stream.pipeThrough(
+          transformStream as unknown as TransformStream<LanguageModelV1StreamPart, LanguageModelV1StreamPart>
+        ),
         ...rest,
       }
     },
